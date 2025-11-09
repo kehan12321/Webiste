@@ -180,7 +180,7 @@ const EnhancedHeader = ({ cartItemCount, onCartClick, theme, toggleTheme, onNavi
               <div className="flex items-baseline gap-2">
                 <span className={cn("text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[var(--zpurple)] to-[var(--zpink)]")}>zaliant</span>
                 {brandSubtitle && (
-                  <span className="metal-text text-lg">{brandSubtitle}</span>
+                  <span className="metal-text text-lg hidden md:inline">{brandSubtitle}</span>
                 )}
               </div>
             </motion.div>
@@ -1238,7 +1238,7 @@ const EnhancedStore = ({ onViewProduct }) => {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
         >
           {filteredProducts.map((product, index) => (
             <motion.div
