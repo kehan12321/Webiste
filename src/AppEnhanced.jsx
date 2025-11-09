@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { useClient } from './context/ClientContext';
 
 // Utils
-import { cn } from './lib/utils';
+import { cn, readBodySafe, extractError } from './lib/utils';
 
 // Icons
 import { ShoppingCart, User, Menu, X, Package, Shield, Zap, PackageCheck, Sparkles, Sun, Moon, BadgeCheck, Play } from 'lucide-react';
@@ -777,15 +777,15 @@ const EnhancedLogin = ({ onRegister, onSuccess }) => {
       const res = await fetch(api('/api/auth/login'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, password: p })
       });
-      const data = await res.json();
-      if (!res.ok || !data.token) throw new Error(data.error || 'Login failed');
+      const data = await readBodySafe(res);
+      if (!res.ok || !data?.token) throw new Error(extractError(data, 'Login failed'));
       localStorage.setItem('auth_token', data.token);
       // Load orders for this account
       try {
         const or = await fetch(api('/api/orders'), { headers: { 'Authorization': `Bearer ${data.token}` } });
         if (or.ok) {
-          const orders = await or.json();
-          setOrdersFromServer(orders);
+          const orders = await readBodySafe(or);
+          if (Array.isArray(orders)) setOrdersFromServer(orders);
         }
       } catch {}
       toast.success('Welcome back');
@@ -832,8 +832,8 @@ const EnhancedRegister = ({ onLogin, onSuccess }) => {
       const res = await fetch(api('/api/auth/register'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, password: p })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Registration failed');
+      const data = await readBodySafe(res);
+      if (!res.ok) throw new Error(extractError(data, 'Registration failed'));
       // Do NOT auto-login after registration; send user to login page
       toast.success('Account created. Please login to continue.');
       onSuccess?.();
@@ -1414,7 +1414,7 @@ const AppEnhanced = () => {
           try {
             const or = await fetch(api('/api/orders'), { headers: { 'Authorization': `Bearer ${token}` } });
             if (or.ok) {
-              const orders = await or.json();
+              const orders = await readBodySafe(or);
               // AppContent renders below; use ClientContext inside AppContent rather than here
               // We'll dispatch via a window event and handle it in AppContent
               window.dispatchEvent(new CustomEvent('zaliant_orders_sync', { detail: orders }));
