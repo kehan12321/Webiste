@@ -1,0 +1,869 @@
+import React, { useState, useMemo, useContext, useEffect, createContext } from "react";
+
+/* ===========================
+   1) Data & Promo Constants
+   =========================== */
+const productsData = [
+  {
+    id: "spoofer-elite",
+    title: "HWID Spoofer Elite (30 Days)",
+    short: "Permanent Ban Protection & Bypass (30 Days).",
+    long: [
+      "Sick of messy setups, bricked motherboards, compatibility issues, and constant headaches? Zaliant's Spoofer has your back!",
+      "**Why Zaliant's Spoofer?**",
+      "- **Safety:** Zaliant's Spoofer does not require flashing your BIOS. Install or uninstall with a single click.",
+      "- **Compatibility:** Works flawlessly on all motherboards and supports TPM 2.0, HVCI, and Secure Boot.",
+      "- **One-Click:** Spoof and restore original serials with one click.",
+      "**Top Features:**",
+      "- Full support for TPM 2.0, HVCI, Secure Boot",
+      "- Compatible with all motherboards",
+      "- 24/7 fast and professional support",
+    ],
+    price: 59.99,
+    tag: "Security",
+  },
+  {
+    id: "spoofer-lifetime",
+    title: "HWID Spoofer Elite (Lifetime)",
+    short: "Permanent Ban Protection & Bypass (Lifetime).",
+    long: [
+      "Lifetime license: all future updates and priority support.",
+      "**Why Zaliant's Spoofer?**",
+      "- No BIOS flashing required.",
+      "- Works across all motherboards.",
+      "- Lifetime updates and priority support.",
+    ],
+    price: 149.99,
+    tag: "Best Value",
+  },
+  {
+    id: "apex-pro-pack",
+    title: "Apex Legends Pro Pack",
+    short: "Optimization & Low Latency Profile.",
+    long: [
+      "Competitive tweaks to lower input lag and stabilize FPS.",
+      "**Key Optimizations:**",
+      "- Reduced Input Lag",
+      "- Optimized TCP/IP network stack",
+      "- Custom game profile for peak stability",
+    ],
+    price: 49.99,
+    tag: "Performance",
+  },
+  {
+    id: "utility-suite",
+    title: "All-in-One Utility Suite",
+    short: "Spoofer, Cleaner, and Optimizers—the ultimate bundle.",
+    long: [
+      "Everything the serious competitor needs in one bundle.",
+      "**Includes:**",
+      "- HWID Spoofer Elite (30 Days)",
+      "- Zaliant System Cleaner",
+      "- All game optimization packs",
+    ],
+    price: 99.99,
+    tag: "Bundle",
+  },
+];
+
+const PROMO_CODES = {
+  ZALIANT20: 0.2,
+  MAXPERF: 0.1,
+  CRYPTO10: 0.1,
+};
+
+/* ===========================
+   2) Cart Context
+   =========================== */
+const CartContext = createContext(null);
+
+const CartProvider = ({ children }) => {
+  const [cart, setCart] = useState([]);
+  const [promoCode, setPromoCode] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkoutData, setCheckoutData] = useState({
+    paymentMethod: "",
+    cryptoType: "BTC",
+    email: "",
+    giftCardCode: "",
+    agreeToTerms: false,
+  });
+
+  const handleAddToCart = (product, quantity = 1) => {
+    setCart((cur) => {
+      const idx = cur.findIndex((i) => i.id === product.id);
+      if (idx > -1) {
+        return cur.map((it, i) => (i === idx ? { ...it, quantity: it.quantity + quantity } : it));
+      }
+      return [...cur, { ...product, quantity }];
+    });
+  };
+
+  const updateQuantity = (id, newQuantity) => {
+    setCart((cur) => cur.map((it) => (it.id === id ? { ...it, quantity: Math.max(1, newQuantity) } : it)));
+  };
+
+  const removeFromCart = (id) => setCart((cur) => cur.filter((it) => it.id !== id));
+
+  const subtotal = useMemo(() => cart.reduce((s, i) => s + (i.price || 0) * (i.quantity || 1), 0), [cart]);
+  const discountRate = promoCode ? PROMO_CODES[promoCode.toUpperCase()] || 0 : 0;
+  const discount = subtotal * discountRate;
+  const total = subtotal - discount;
+  const totalItems = cart.reduce((s, i) => s + (i.quantity || 1), 0);
+
+  const value = {
+    cart,
+    handleAddToCart,
+    updateQuantity,
+    removeFromCart,
+    subtotal,
+    discount,
+    total,
+    totalItems,
+    promoCode,
+    setPromoCode,
+    isLoggedIn,
+    setIsLoggedIn,
+    PROMO_CODES,
+    checkoutData,
+    setCheckoutData,
+  };
+
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
+};
+
+const useCart = () => {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used inside CartProvider");
+  return ctx;
+};
+
+/* ===========================
+   3) Tiny Icon helper (SRVG)
+   =========================== */
+const Icon = ({ children, className = "w-5 h-5 inline-block", ...props }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+    {children}
+  </svg>
+);
+
+/* Useful icons used in UI */
+const ShoppingCartIcon = (p) => (
+  <Icon {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4" />
+  </Icon>
+);
+const ArrowRightIcon = (p) => (
+  <Icon {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+  </Icon>
+);
+const ArrowLeftIcon = (p) => (
+  <Icon {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5 5-5M6 12h12" />
+  </Icon>
+);
+const PackageIcon = (p) => (
+  <Icon {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 16V8a2 2 0 00-2-2h-6L3 8v8a2 2 0 002 2h14a2 2 0 002-2z" />
+  </Icon>
+);
+const CheckCircleIcon = (p) => (
+  <Icon {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
+    <circle cx="12" cy="12" r="9" strokeLinecap="round" strokeLinejoin="round" />
+  </Icon>
+);
+const XIcon = (p) => (
+  <Icon {...p}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M6 18L18 6" />
+  </Icon>
+);
+const BitcoinIcon = (p) => (
+  <Icon {...p}>
+    <path d="M8.5 12h8m-8-4h8m-8 8h5.5M12 3v3m0 12v3M5.5 6.5C5.5 4.5 7 3 9 3h6c2 0 3.5 1.5 3.5 3.5v11c0 2-1.5 3.5-3.5 3.5H9c-2 0-3.5-1.5-3.5-3.5v-11z" />
+  </Icon>
+);
+const EthereumIcon = (p) => (
+  <Icon {...p}>
+    <path d="M12 2l2 7-2 5-2-5 2-7zm0 12l2 5-2 3-2-3 2-5zm-6-6l5 2-3 4-4-1 2-5zm12 0l-5 2 3 4 4-1-2-5z" />
+  </Icon>
+);
+const LitecoinIcon = (p) => (
+  <Icon {...p}>
+    <path d="M12 2v6m0 4v6m0 4v2m-4-14h8m-8 8h8M7 7l-2 2v8l2 2h10l2-2V9l-2-2H7z" />
+  </Icon>
+);
+
+/* ===========================
+   4) Header / Footer
+   =========================== */
+const Header = ({ currentPage, navigate }) => {
+  const { totalItems, isLoggedIn } = useCart();
+
+  const nav = [
+    { name: "Home", key: "home" },
+    { name: "Store", key: "store" },
+    { name: "Dashboard", key: "dashboard" },
+    { name: "Support", key: "support" },
+  ];
+
+  return (
+    <header className="bg-gray-900/80 backdrop-blur-md sticky top-0 z-40 border-b border-gray-800 transition-all duration-300">
+      <div className="max-w-7xl mx-auto flex items-center justify-between p-4">
+        <div className="flex items-center gap-3 cursor-pointer transform transition-transform hover:scale-105" onClick={() => navigate("home")}>
+          <div className="w-10 h-10 rounded bg-gradient-to-r from-purple-600 to-purple-800 flex items-center justify-center font-bold shadow-lg shadow-purple-500/30">Z</div>
+          <div>
+            <div className="font-bold text-white">ZALIANT</div>
+            <div className="text-xs text-gray-400">Performance Tools</div>
+          </div>
+        </div>
+
+        <nav className="hidden md:flex gap-6">
+          {nav.map((n) => (
+            <button
+              key={n.key}
+              onClick={() => navigate(n.key)}
+              className={`text-sm font-semibold transition-all duration-200 ${currentPage === n.key ? "text-purple-400 border-b-2 border-purple-600" : "text-gray-300 hover:text-white"}`}
+            >
+              {n.name}
+            </button>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <button onClick={() => navigate("cart")} className="relative text-gray-300 hover:text-white p-2 transition-colors duration-200">
+            <ShoppingCartIcon />
+            {totalItems > 0 && <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">{totalItems}</span>}
+          </button>
+          <button onClick={() => navigate("login")} className="bg-gradient-to-r from-purple-600 to-purple-800 text-black px-3 py-2 rounded font-bold shadow-lg shadow-purple-500/30 transform transition-all hover:scale-105">
+            {isLoggedIn ? "Profile" : "Login"}
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+const Footer = () => (
+  <footer className="border-t border-gray-800 mt-12 py-8 text-center text-gray-400">
+    <div className="max-w-4xl mx-auto">© {new Date().getFullYear()} Zaliant — Engineered for Excellence</div>
+  </footer>
+);
+
+/* ===========================
+   5) Layout (wrap pages)
+   =========================== */
+const Layout = ({ children, currentPage, navigate }) => {
+  return (
+    <div className="min-h-screen flex flex-col bg-black text-gray-100">
+      <style>{`
+        :root { --zpurple: #7b3cff; --zpurple2:#5a2be6; }
+        .btn-primary { background: linear-gradient(to right, var(--zpurple), var(--zpurple2)); color: black; padding: .6rem 1rem; border-radius: .5rem; font-weight:700; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(123, 60, 255, 0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(123, 60, 255, 0.4); }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-in { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .pulse-animation { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .crypto-option { transition: all 0.3s ease; }
+        .crypto-option:hover { transform: translateY(-5px); }
+        .crypto-option.selected { border-color: var(--zpurple); background-color: rgba(123, 60, 255, 0.1); }
+      `}</style>
+
+      <Header currentPage={currentPage} navigate={navigate} />
+      <main className="flex-grow max-w-6xl mx-auto px-4 py-10 w-full fade-in">{children}</main>
+      <Footer />
+    </div>
+  );
+};
+
+/* ===========================
+   6) ProductCard
+   =========================== */
+const ProductCard = ({ product, onView, onAdd }) => {
+  return (
+    <article className="bg-gray-900 rounded-lg border border-gray-800 p-4 transform transition-all duration-300 hover:scale-105 hover:border-purple-600 hover:shadow-lg hover:shadow-purple-500/20">
+      <div className="h-40 flex items-center justify-center bg-gray-800 rounded mb-4">
+        <PackageIcon className="w-12 h-12 text-purple-400" />
+      </div>
+      <h3 className="text-lg font-bold text-white">{product.title}</h3>
+      <p className="text-gray-400 text-sm mb-3">{product.short}</p>
+      <div className="flex items-center justify-between">
+        <div className="text-2xl font-extrabold text-purple-500">${(product.price || 0).toFixed(2)}</div>
+        <div className="flex gap-2">
+          <button onClick={() => onAdd(product)} className="btn-primary">Add</button>
+          <button onClick={() => onView(product.id)} className="px-3 py-1 bg-gray-700 rounded text-white transition-colors hover:bg-gray-600">View</button>
+        </div>
+      </div>
+    </article>
+  );
+};
+
+/* ===========================
+   7) Pages: Home / Store / Product / Cart / Checkout / Dashboard / Support / Login
+   =========================== */
+
+const HomePage = ({ navigate, setProductId }) => {
+  const featured = productsData.slice(0, 3);
+  return (
+    <div className="space-y-16">
+      <section className="text-center py-12 fade-in">
+        <span className="inline-block bg-red-900/50 px-3 py-1 text-xs text-red-300 rounded-full pulse-animation">Engineered for Esports</span>
+        <h1 className="text-5xl font-extrabold mt-6 bg-gradient-to-r from-white to-purple-400 bg-clip-text text-transparent">Dominate <span className="text-purple-400">Performance</span></h1>
+        <p className="text-gray-400 mt-4 max-w-2xl mx-auto">Zaliant provides all-in-one performance packs, secure utilities, and cutting-edge anti-ban solutions for serious gamers.</p>
+        <div className="mt-8 flex gap-4 justify-center">
+          <button onClick={() => navigate("store")} className="btn-primary">Explore Store</button>
+          <button onClick={() => navigate("support")} className="px-4 py-2 bg-gray-700 rounded transition-colors hover:bg-gray-600">Support</button>
+        </div>
+      </section>
+
+      <section className="fade-in">
+        <h2 className="text-3xl font-bold mb-6">Featured Products</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {featured.map((p) => (
+            <ProductCard key={p.id} product={p} onAdd={() => setProductId(p.id) || null} onView={(id) => setProductId(id) || navigate("product")} />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const StorePage = ({ navigate, setProductId }) => {
+  return (
+    <div className="space-y-6 fade-in">
+      <h2 className="text-3xl font-bold">Zaliant Store</h2>
+      <p className="text-gray-400">Choose the right utility for your competitive needs.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
+        {productsData.map((p) => (
+          <ProductCard key={p.id} product={p} onAdd={() => { setProductId(p.id); navigate("cart"); }} onView={(id) => { setProductId(id); navigate("product"); }} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const ProductPage = ({ productId, navigate }) => {
+  const product = productsData.find((p) => p.id === productId);
+  const { handleAddToCart } = useCart();
+  const [quantity, setQuantity] = useState(1);
+  const [tab, setTab] = useState("description");
+
+  useEffect(() => {
+    if (!product && productId !== null) {
+      // if product not found, go back to store after small delay
+      const t = setTimeout(() => navigate("store"), 700);
+      return () => clearTimeout(t);
+    }
+  }, [product, productId, navigate]);
+
+  if (!product) return <div className="text-white">Product not found. Redirecting...</div>;
+
+  const renderDescription = () =>
+    product.long.map((line, i) => {
+      if (!line) return null;
+      if (line.startsWith("**")) return <h4 key={i} className="text-white font-semibold mt-4">{line.replace(/\*\*/g, "")}</h4>;
+      if (line.startsWith("- ")) return <li key={i} className="text-gray-300 ml-4">{line.replace(/^- /, "")}</li>;
+      return <p key={i} className="text-gray-300">{line}</p>;
+    });
+
+  return (
+    <div className="space-y-6 fade-in">
+      <button onClick={() => navigate("store")} className="text-purple-400 flex items-center gap-2 transition-colors hover:text-purple-300"><ArrowLeftIcon /> Back to store</button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 bg-gray-900 p-6 rounded-lg shadow-xl">
+        <div className="lg:col-span-1 bg-gray-800 p-6 rounded flex flex-col items-center">
+          <PackageIcon className="w-16 h-16 text-purple-400" />
+          <div className="mt-4 text-gray-400 text-sm">{product.id.toUpperCase()}</div>
+        </div>
+
+        <div className="lg:col-span-2 space-y-4">
+          <span className={`px-3 py-1 rounded-full text-xs font-bold ${product.tag === "Best Value" ? "bg-red-600" : "bg-purple-600"}`}>{product.tag}</span>
+          <h1 className="text-3xl font-bold">{product.title}</h1>
+          <p className="text-gray-400">{product.short}</p>
+
+          <div className="flex items-center gap-6">
+            <div className="text-3xl font-extrabold text-purple-500">${product.price.toFixed(2)}</div>
+            <div className="flex items-center gap-2 border rounded">
+              <button onClick={() => setQuantity((q) => Math.max(1, q - 1))} className="px-3 hover:bg-gray-700 transition-colors">-</button>
+              <div className="px-4">{quantity}</div>
+              <button onClick={() => setQuantity((q) => q + 1)} className="px-3 hover:bg-gray-700 transition-colors">+</button>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => { handleAddToCart(product, quantity); navigate("cart"); }} className="btn-primary px-6">Buy Now</button>
+            <button onClick={() => handleAddToCart(product, quantity)} className="px-4 py-2 bg-gray-700 rounded transition-colors hover:bg-gray-600">Add to Cart</button>
+          </div>
+
+          <div>
+            <div className="flex gap-2 border-b border-gray-800">
+              <button onClick={() => setTab("description")} className={`pb-2 transition-colors ${tab === "description" ? "border-b-2 border-purple-600 text-white" : "text-gray-400 hover:text-white"}`}>Description</button>
+              <button onClick={() => setTab("reviews")} className={`pb-2 transition-colors ${tab === "reviews" ? "border-b-2 border-purple-600 text-white" : "text-gray-400 hover:text-white"}`}>Reviews</button>
+            </div>
+
+            <div className="mt-4 bg-gray-800 p-4 rounded min-h-[160px]">
+              {tab === "description" ? <div className="text-gray-300 space-y-2">{renderDescription()}</div> : <div className="text-gray-400">Reviews coming soon.</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CartPage = ({ navigate }) => {
+  const { cart, updateQuantity, removeFromCart, subtotal, discount, total, promoCode, setPromoCode, PROMO_CODES } = useCart();
+  const [promoInput, setPromoInput] = useState(promoCode || "");
+  const [message, setMessage] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+
+  const applyPromoCode = () => {
+    setIsApplyingPromo(true);
+    setTimeout(() => {
+      const code = promoInput.toUpperCase();
+      if (PROMO_CODES[code] !== undefined) {
+        setPromoCode(code);
+        setMessage(`Applied ${code} — ${(PROMO_CODES[code] * 100).toFixed(0)}% off`);
+      } else {
+        setMessage("Invalid promo code");
+      }
+      setIsApplyingPromo(false);
+    }, 500);
+  };
+
+  useEffect(() => {
+    if (!promoInput) return setMessage("");
+  }, [promoInput]);
+
+  if (!cart.length) {
+    return (
+      <div className="text-center py-20 fade-in">
+        <div className="text-4xl mb-4">🛒</div>
+        <h2 className="text-2xl font-bold">Your cart is empty</h2>
+        <p className="text-gray-400">Browse the store to add items.</p>
+        <div className="mt-6">
+          <button onClick={() => navigate("store")} className="btn-primary px-6">Go to Store</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-6 fade-in">
+      <div className="lg:col-span-2 space-y-4">
+        {cart.map((it) => (
+          <div key={it.id} className="p-4 bg-gray-900 rounded-lg flex items-center justify-between slide-in">
+            <div>
+              <div className="font-bold">{it.title}</div>
+              <div className="text-gray-400">${it.price.toFixed(2)} / unit</div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center border rounded">
+                <button onClick={() => updateQuantity(it.id, it.quantity - 1)} className="px-3 hover:bg-gray-700 transition-colors">-</button>
+                <div className="px-3">{it.quantity}</div>
+                <button onClick={() => updateQuantity(it.id, it.quantity + 1)} className="px-3 hover:bg-gray-700 transition-colors">+</button>
+              </div>
+              <div className="font-bold text-red-400">${(it.price * it.quantity).toFixed(2)}</div>
+              <button onClick={() => removeFromCart(it.id)} className="text-red-500 hover:text-red-400 transition-colors"><XIcon /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <aside className="p-6 bg-gray-900 rounded-lg shadow-xl">
+        <h3 className="font-bold text-xl">Order Summary</h3>
+        <div className="mt-4 space-y-2">
+          <div className="flex justify-between text-gray-300"><span>Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
+          <div className="flex justify-between text-red-400"><span>Discount</span><span>-${discount.toFixed(2)}</span></div>
+          <div className="flex justify-between font-extrabold text-purple-400 text-2xl border-t border-purple-600 pt-3"><span>Total</span><span>${total.toFixed(2)}</span></div>
+
+          <div className="mt-4">
+            <label className="text-sm">Promo code</label>
+            <div className="flex gap-2 mt-2">
+              <input value={promoInput} onChange={(e) => setPromoInput(e.target.value)} className="bg-gray-800 p-2 rounded w-full focus:outline-none focus:ring-2 focus:ring-purple-600" placeholder="ZALIANT20" />
+              <button onClick={applyPromoCode} disabled={isApplyingPromo} className="px-4 py-2 bg-red-600 rounded transition-all hover:bg-red-700 disabled:opacity-50">
+                {isApplyingPromo ? "..." : "Apply"}
+              </button>
+            </div>
+            {message && <div className={`text-sm mt-2 ${message.includes("Applied") ? "text-green-400" : "text-red-400"}`}>{message}</div>}
+          </div>
+
+          <div className="mt-6 space-y-2">
+            <button onClick={() => navigate("checkout")} className="w-full btn-primary">Proceed to Checkout</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+};
+
+const CheckoutPage = ({ navigate }) => {
+  const { cart, total, promoCode, checkoutData, setCheckoutData } = useCart();
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [orderComplete, setOrderComplete] = useState(false);
+  const [orderId, setOrderId] = useState("");
+
+  const cryptoAddresses = {
+    BTC: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    ETH: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4Db45",
+    LTC: "LTC1TESTADDRESS123456789ABCDEFG",
+  };
+
+  const handleCheckout = () => {
+    setIsProcessing(true);
+    // Simulate processing
+    setTimeout(() => {
+      setIsProcessing(false);
+      setOrderComplete(true);
+      setOrderId(`ZL-${Math.floor(Math.random() * 100000)}`);
+    }, 3000);
+  };
+
+  if (!cart.length) {
+    return (
+      <div className="text-center py-20 fade-in">
+        <h2 className="text-2xl font-bold">Your cart is empty</h2>
+        <p className="text-gray-400">Add items to your cart before checking out.</p>
+        <div className="mt-6">
+          <button onClick={() => navigate("store")} className="btn-primary px-6">Go to Store</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (orderComplete) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-12 fade-in">
+        <div className="text-6xl mb-4">✅</div>
+        <h2 className="text-3xl font-bold mb-4">Order Complete!</h2>
+        <p className="text-gray-400 mb-6">Thank you for your purchase. Your order has been processed successfully.</p>
+        <div className="bg-gray-900 p-6 rounded-lg mb-6">
+          <p className="text-sm text-gray-400 mb-2">Order ID</p>
+          <p className="text-xl font-bold text-purple-400">{orderId}</p>
+        </div>
+        <p className="text-gray-400 mb-6">You will receive a confirmation email shortly with your product keys and download instructions.</p>
+        <button onClick={() => navigate("dashboard")} className="btn-primary">Go to Dashboard</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto fade-in">
+      <h2 className="text-3xl font-bold mb-6">Checkout</h2>
+      
+      {/* Progress Steps */}
+      <div className="flex items-center justify-between mb-8">
+        <div className={`flex items-center ${currentStep >= 1 ? "text-purple-400" : "text-gray-600"}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? "bg-purple-600" : "bg-gray-700"}`}>1</div>
+          <span className="ml-2">Contact</span>
+        </div>
+        <div className={`flex-1 h-1 mx-2 ${currentStep >= 2 ? "bg-purple-600" : "bg-gray-700"}`}></div>
+        <div className={`flex items-center ${currentStep >= 2 ? "text-purple-400" : "text-gray-600"}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? "bg-purple-600" : "bg-gray-700"}`}>2</div>
+          <span className="ml-2">Payment</span>
+        </div>
+        <div className={`flex-1 h-1 mx-2 ${currentStep >= 3 ? "bg-purple-600" : "bg-gray-700"}`}></div>
+        <div className={`flex items-center ${currentStep >= 3 ? "text-purple-400" : "text-gray-600"}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? "bg-purple-600" : "bg-gray-700"}`}>3</div>
+          <span className="ml-2">Review</span>
+        </div>
+      </div>
+
+      {/* Step 1: Contact Information */}
+      {currentStep === 1 && (
+        <div className="bg-gray-900 p-6 rounded-lg slide-in">
+          <h3 className="text-xl font-bold mb-4">Contact Information</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm mb-2">Email Address</label>
+              <input
+                type="email"
+                value={checkoutData.email}
+                onChange={(e) => setCheckoutData({ ...checkoutData, email: e.target.value })}
+                className="w-full p-3 bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-purple-600"
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={checkoutData.agreeToTerms}
+                onChange={(e) => setCheckoutData({ ...checkoutData, agreeToTerms: e.target.checked })}
+                className="mr-2"
+              />
+              <label htmlFor="terms" className="text-sm text-gray-400">
+                I agree to the Terms of Service and Privacy Policy
+              </label>
+            </div>
+            <button
+              onClick={() => setCurrentStep(2)}
+              disabled={!checkoutData.email || !checkoutData.agreeToTerms}
+              className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continue to Payment
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Payment Method */}
+      {currentStep === 2 && (
+        <div className="bg-gray-900 p-6 rounded-lg slide-in">
+          <h3 className="text-xl font-bold mb-4">Payment Method</h3>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={() => setCheckoutData({ ...checkoutData, paymentMethod: "crypto" })}
+                className={`p-4 rounded-lg border-2 transition-all crypto-option ${checkoutData.paymentMethod === "crypto" ? "selected" : "border-gray-700"}`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <BitcoinIcon className="w-8 h-8 text-orange-400 mr-2" />
+                  <EthereumIcon className="w-8 h-8 text-blue-400 mr-2" />
+                  <LitecoinIcon className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="font-bold">Cryptocurrency</p>
+                <p className="text-sm text-gray-400">BTC, ETH, LTC</p>
+              </button>
+              
+              <button
+                onClick={() => setCheckoutData({ ...checkoutData, paymentMethod: "giftcard" })}
+                className={`p-4 rounded-lg border-2 transition-all crypto-option ${checkoutData.paymentMethod === "giftcard" ? "selected" : "border-gray-700"}`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <PackageIcon className="w-8 h-8 text-purple-400" />
+                </div>
+                <p className="font-bold">Gift Card</p>
+                <p className="text-sm text-gray-400">Redeem with code</p>
+              </button>
+            </div>
+
+            {checkoutData.paymentMethod === "crypto" && (
+              <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+                <label className="block text-sm mb-2">Select Cryptocurrency</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {["BTC", "ETH", "LTC"].map((crypto) => (
+                    <button
+                      key={crypto}
+                      onClick={() => setCheckoutData({ ...checkoutData, cryptoType: crypto })}
+                      className={`p-2 rounded border ${checkoutData.cryptoType === crypto ? "border-purple-600 bg-purple-900/30" : "border-gray-700"}`}
+                    >
+                      {crypto}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 p-3 bg-gray-900 rounded">
+                  <p className="text-sm text-gray-400 mb-1">Send payment to:</p>
+                  <p className="font-mono text-xs break-all">{cryptoAddresses[checkoutData.cryptoType]}</p>
+                </div>
+              </div>
+            )}
+
+            {checkoutData.paymentMethod === "giftcard" && (
+              <div className="mt-4">
+                <label className="block text-sm mb-2">Gift Card Code</label>
+                <input
+                  type="text"
+                  value={checkoutData.giftCardCode}
+                  onChange={(e) => setCheckoutData({ ...checkoutData, giftCardCode: e.target.value })}
+                  className="w-full p-3 bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  placeholder="Enter your gift card code"
+                />
+              </div>
+            )}
+
+            <div className="flex justify-between mt-6">
+              <button onClick={() => setCurrentStep(1)} className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 transition-colors">
+                Back
+              </button>
+              <button
+                onClick={() => setCurrentStep(3)}
+                disabled={!checkoutData.paymentMethod || (checkoutData.paymentMethod === "giftcard" && !checkoutData.giftCardCode)}
+                className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continue to Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Review Order */}
+      {currentStep === 3 && (
+        <div className="bg-gray-900 p-6 rounded-lg slide-in">
+          <h3 className="text-xl font-bold mb-4">Review Your Order</h3>
+          
+          <div className="space-y-4 mb-6">
+            {cart.map((item) => (
+              <div key={item.id} className="flex justify-between items-center pb-2 border-b border-gray-800">
+                <div>
+                  <p className="font-bold">{item.title}</p>
+                  <p className="text-sm text-gray-400">Qty: {item.quantity}</p>
+                </div>
+                <p className="font-bold">${(item.price * item.quantity).toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-2 mb-6">
+            <div className="flex justify-between text-gray-400">
+              <span>Subtotal</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            {promoCode && (
+              <div className="flex justify-between text-green-400">
+                <span>Promo Code ({promoCode})</span>
+                <span>-${(total * 0.2).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xl font-bold text-purple-400 pt-2 border-t border-gray-800">
+              <span>Total</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-sm text-gray-400 mb-2">Payment Method</p>
+            <p className="font-bold">
+              {checkoutData.paymentMethod === "crypto" 
+                ? `Cryptocurrency (${checkoutData.cryptoType})` 
+                : "Gift Card"}
+            </p>
+          </div>
+
+          <div className="mb-6">
+            <p className="text-sm text-gray-400 mb-2">Contact Email</p>
+            <p className="font-bold">{checkoutData.email}</p>
+          </div>
+
+          <div className="flex justify-between">
+            <button onClick={() => setCurrentStep(2)} className="px-4 py-2 bg-gray-700 rounded hover:bg-gray-600 transition-colors">
+              Back
+            </button>
+            <button
+              onClick={handleCheckout}
+              disabled={isProcessing}
+              className="btn-primary px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                "Complete Order"
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DashboardPage = () => (
+  <div className="fade-in">
+    <h2 className="text-2xl font-bold">Dashboard</h2>
+    <div className="mt-4 p-4 bg-gray-900 rounded">Client area coming soon.</div>
+  </div>
+);
+
+const SupportPage = () => (
+  <div className="fade-in">
+    <h2 className="text-2xl font-bold">Support</h2>
+    <div className="mt-4 p-4 bg-gray-900 rounded">
+      <p className="text-gray-400">Open a ticket on Discord or email support@zaliant.net</p>
+    </div>
+  </div>
+);
+
+const LoginPage = ({ navigate }) => {
+  const { setIsLoggedIn } = useCart();
+  const [isRegister, setIsRegister] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    // Simulate authentication
+    setTimeout(() => {
+      setIsLoggedIn(true);
+      setIsLoading(false);
+      navigate("dashboard");
+    }, 1000);
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-[60vh] fade-in">
+      <div className="w-full max-w-md p-8 bg-gray-900 rounded-lg shadow-xl">
+        <h2 className="text-2xl font-bold mb-4">{isRegister ? "Register" : "Login"}</h2>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <input required className="w-full p-3 bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" placeholder="Email" />
+          <input required className="w-full p-3 bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" placeholder="Password" type="password" />
+          {isRegister && <input className="w-full p-3 bg-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-purple-600" placeholder="Confirm password" type="password" />}
+          <button type="submit" disabled={isLoading} className="w-full btn-primary py-3 mt-2 disabled:opacity-50">
+            {isLoading ? "Processing..." : (isRegister ? "Register" : "Sign in")}
+          </button>
+        </form>
+        <div className="mt-3 text-center">
+          <button onClick={() => setIsRegister((s) => !s)} className="text-purple-400 hover:text-purple-300 transition-colors">
+            {isRegister ? "Already have an account?" : "Need an account?"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ===========================
+   8) App (Router-style local)
+   =========================== */
+export default function App() {
+  const [page, setPage] = useState("home");
+  const [productId, setProductId] = useState(null);
+
+  const navigate = (p) => setPage(p);
+  const setAndOpenProduct = (id) => {
+    setProductId(id);
+    setPage("product");
+  };
+
+  const render = () => {
+    switch (page) {
+      case "store":
+        return <StorePage navigate={navigate} setProductId={setAndOpenProduct} />;
+      case "product":
+        return <ProductPage productId={productId} navigate={navigate} />;
+      case "cart":
+        return <CartPage navigate={navigate} />;
+      case "checkout":
+        return <CheckoutPage navigate={navigate} />;
+      case "dashboard":
+        return <DashboardPage />;
+      case "support":
+        return <SupportPage />;
+      case "login":
+        return <LoginPage navigate={navigate} />;
+      case "home":
+      default:
+        return <HomePage navigate={navigate} setProductId={setAndOpenProduct} />;
+    }
+  };
+
+  return (
+    <CartProvider>
+      <Layout currentPage={page} navigate={navigate}>
+        {render()}
+      </Layout>
+    </CartProvider>
+  );
+}

@@ -25,8 +25,7 @@ export default function CartDrawer({ open, onClose, navigate }) {
         animate={{ opacity: open ? 1 : 0, x: open ? 0 : 420 }}
         exit={{ opacity: 0, x: 420 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="fixed top-24 right-6 w-[420px] max-w-[95vw] max-h-[80vh] bg-black/90 p-6 z-[10050] overflow-y-auto relative rounded-lg shadow-xl border border-white/10"
-        style={{ position: 'fixed', top: '96px', right: '24px', left: 'auto' }}
+        className="fixed top-20 left-0 right-0 sm:left-auto sm:right-6 w-[95vw] sm:w-[420px] max-h-[70vh] sm:max-h-[80vh] bg-black/90 p-6 z-[10050] overflow-y-auto relative rounded-lg shadow-xl border border-white/10"
       >
       {/* Top-right close button */}
       <button

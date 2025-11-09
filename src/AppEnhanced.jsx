@@ -273,6 +273,75 @@ const EnhancedHeader = ({ cartItemCount, onCartClick, theme, toggleTheme, onNavi
             </motion.button>
           </div>
         </div>
+
+        {/* Mobile menu panel */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className={cn("md:hidden mt-3 rounded-lg border", theme === 'dark' ? "bg-gray-900/90 border-gray-800" : "bg-white/90 border-gray-200")}
+            >
+              <div className="flex flex-col py-2">
+                {[
+                  { label: 'Home', page: 'home' },
+                  { label: 'Store', page: 'store' },
+                  { label: 'Support', page: 'support' },
+                  { label: 'Dashboard', page: 'dashboard' },
+                ].map((item) => (
+                  <button
+                    key={item.page}
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      if (item.page === 'dashboard') {
+                        isLoggedIn ? onNavigate?.('dashboard') : onNavigate?.('login');
+                      } else {
+                        onNavigate?.(item.page);
+                      }
+                    }}
+                    className={cn(
+                      "text-left px-4 py-3",
+                      theme === 'dark' ? "text-gray-300 hover:bg-gray-800" : "text-gray-700 hover:bg-gray-100"
+                    )}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+
+                <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-800/40">
+                  <button
+                    onClick={toggleTheme}
+                    className={cn("p-2 rounded", theme === 'dark' ? "text-gray-300 hover:bg-gray-800" : "text-gray-700 hover:bg-gray-100")}
+                    aria-label="Toggle theme"
+                  >
+                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </button>
+                  <button
+                    onClick={() => { setIsMenuOpen(false); onNavigate?.('login'); }}
+                    className={cn("p-2 rounded", theme === 'dark' ? "text-gray-300 hover:bg-gray-800" : "text-gray-700 hover:bg-gray-100")}
+                    aria-label="Login"
+                  >
+                    <User className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => { setIsMenuOpen(false); onCartClick?.(); }}
+                    className={cn("p-2 rounded relative", theme === 'dark' ? "text-gray-300 hover:bg-gray-800" : "text-gray-700 hover:bg-gray-100")}
+                    aria-label="Open cart"
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                    {cartItemCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-gradient-to-r from-[var(--zpurple)] to-[var(--zpink)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {cartItemCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.header>
   );
@@ -1297,7 +1366,7 @@ const AppContent = ({ currentPage, setCurrentPage, cartOpen, setCartOpen, isLogg
         onLogout={handleLogout}
       />
       
-      <main className="pt-32">
+      <main className="pt-24 md:pt-32">
         {renderPage()}
       </main>
 
