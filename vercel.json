@@ -3,6 +3,5 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "cleanUrls": true,
-  "trailingSlash": false,
-  "ignoreCommand": "echo Using root Vite app: skipping nested projects"
+  "trailingSlash": false
 }
